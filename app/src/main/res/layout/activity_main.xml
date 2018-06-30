@@ -64,17 +64,19 @@
 
     </RelativeLayout>
 
-    <!--
+
     <android.support.v7.widget.RecyclerView
         android:id="@id/rv_user_cards"
+        android:layout_margin="@dimen/layout_margin"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scrollbars="vertical">
 
     </android.support.v7.widget.RecyclerView>
 
-    -->
 
+
+    <!--
     <TextView
         android:id="@+id/test_json"
         android:layout_marginTop="130dp"
@@ -82,4 +84,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="40sp" />
+
+        -->
 </LinearLayout>

@@ -5,6 +5,8 @@ import android.net.Uri;
 import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -13,7 +15,12 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.niemawidaha.practical_deckofcards.backend.CardDeckAdapter;
+import com.example.niemawidaha.practical_deckofcards.backend.CardDeckService;
+import com.example.niemawidaha.practical_deckofcards.model.Card;
+import com.example.niemawidaha.practical_deckofcards.model.SelectedCardsJsonResponse;
 import com.example.niemawidaha.practical_deckofcards.model.ShuffledDeckJsonResponse;
+import com.google.gson.Gson;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -24,8 +31,16 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+public class MainActivity extends AppCompatActivity implements CardDeckAdapter.ItemClickListener {
 
     // Private members:
     private final static String LOG_TAG = "LOG_TAG: Main Activity";
@@ -37,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     // card deck values:
-    // private List<CardModel> cardDeck;     // LIST OF CARD DECK
+     private List<Card> cardDeck;     // LIST OF CARD DECK
     private static String deck_id; // DECK ID
     private int currentCount = 52; // current count OF CARDS:
     private int numOfUsersValue; // USER SELECTED VALUE
@@ -45,16 +60,22 @@ public class MainActivity extends AppCompatActivity {
     // Cards Remaining Formatting:
     private String displayCount = String.format("Cards Remaining: %s", currentCount); // String placeholder that updates the Cards Remaining text
     private String displayUserValueValidationError = String.format("There are only %s, cards remaining", currentCount); // String placeholder that updates the Cards Remaining text
+    private String displaySelectedCard;
 
+    // Recyler View Imports:
+    CardDeckAdapter cardDeckAdapter;
 
     // CARD JSON RESPONSE MODELS:
     private ShuffledDeckJsonResponse shuffledDeck;
 
-    // Recyler View Imports:
+
+    // Retrofit Imports:
+    private static Retrofit retrofit = null;
+    private RecyclerView m_RV_CardDeck = null;
 
     // Networking Imports:
     public static final String SHUFFLE_CARD_DECK_BASE_URL = "https://deckofcardsapi.com/api/deck/new/shuffle/";
-    public static final String deckOfCards_BASE_URL = "https://deckofcardsapi.com/api/deck/" + deck_id + "/draw/?";
+    public final String deckOfCards_BASE_URL = "https://deckofcardsapi.com/api";
     public String QUERY_PARAM = "count"; // Parameter for the search string
 
 
@@ -90,8 +111,8 @@ public class MainActivity extends AppCompatActivity {
         m_btn_ShuffleNewDeck = findViewById(R.id.btn_shuffle_new_deck);
         m_et_SpecifiedCards = findViewById(R.id.et_draw_cards);
         m_btn_DrawCards = findViewById(R.id.btn_display_drawn_cards);
+        m_RV_CardDeck = findViewById(R.id.rv_user_cards);
 
-       testJSON = findViewById(R.id.test_json);
 
         setUpRV();
     } // ends initViews()
@@ -101,7 +122,44 @@ public class MainActivity extends AppCompatActivity {
      * this method will set the RV views and automatically adapt image views into the adapter
      */
     public void setUpRV() {
+
+        cardDeck = new ArrayList<>();
+
+        int numOfColumns = 2;
+
+        m_RV_CardDeck.setLayoutManager( new GridLayoutManager(this, numOfColumns));
+        m_RV_CardDeck.setHasFixedSize(false);
+
+        // card deck adapter:
+        // set listener:
+        cardDeckAdapter = new CardDeckAdapter(this, cardDeck);
+        cardDeckAdapter.setClickListener(this);
+
+        // set adapter on the RV:
+        m_RV_CardDeck.setAdapter(cardDeckAdapter);
+
+        // notify data set changed:
+        Log.d(LOG_TAG, "setupRV called!");
+
+        cardDeckAdapter.notifyDataSetChanged();
+
     } // ends setUpRv()
+
+    /**
+     * onItemClick():
+     * when an image view is clicked, the app should display a Toast message
+     * saying the value and suit of the card that was clicked
+     * contracted method from the ItemClickListner interface in the adapter:
+     * @param view
+     * @param position
+     */
+    @Override
+    public void onItemClick(View view, int position) {
+
+        displaySelectedCard = String.format("You have selected: " + cardDeck.get(position).getCode());
+
+        Toast.makeText(this, displaySelectedCard, Toast.LENGTH_LONG).show();
+    }
 
     public void shuffleNewDeck(View view) {
 
@@ -203,6 +261,8 @@ public class MainActivity extends AppCompatActivity {
             // take the value and make an HTTP get request: query parameter count:
             // endpoint: https://deckofcardsapi.com/api/deck/{deck_id}/draw/?count={num_of_cards}
 
+            connectToGetApiData(numOfUserSelection);
+
             Log.d(LOG_TAG, "drawDeck called! valid user input");
         }
 
@@ -213,6 +273,44 @@ public class MainActivity extends AppCompatActivity {
         hideKeyboard();
 
     } // ends drawDeck()
+
+    /**
+     * connectToGetApiData():
+     * this method will create a retrofit service and gather the jsons response:
+     * @param numOfUserSelection
+     */
+    private void connectToGetApiData(int numOfUserSelection) {
+
+        if( retrofit == null){
+            retrofit = new Retrofit.Builder()
+                    .baseUrl(deckOfCards_BASE_URL)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build();
+
+        }
+
+        // create your card deck service:
+        CardDeckService cardDeckService = retrofit.create(CardDeckService.class);
+
+        // create your call back:
+        Call<List<SelectedCardsJsonResponse>> selectedCardsJsonResponseCall = cardDeckService.getSelectedCards(shuffledDeck.getDeckId(), numOfUserSelection);
+
+        selectedCardsJsonResponseCall.enqueue(new Callback<List<SelectedCardsJsonResponse>>() {
+
+            @Override
+            public void onResponse(Call<List<SelectedCardsJsonResponse>> call, Response<List<SelectedCardsJsonResponse>> response) {
+
+                Log.d(LOG_TAG, "onResponse: " +  response.body().toString());
+            }
+
+            @Override
+            public void onFailure(Call<List<SelectedCardsJsonResponse>> call, Throwable t) {
+                Log.d(LOG_TAG, t.getMessage());
+            }
+        });
+    } // ends connectToGetApiData
+
+
 
     /**
      * hideKeyboard():
@@ -287,4 +385,6 @@ public class MainActivity extends AppCompatActivity {
 
         return new String(buffer);
     } // ends convertInputToString()
+
+
 } // ends Main Activity
