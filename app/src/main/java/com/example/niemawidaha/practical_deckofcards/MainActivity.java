@@ -75,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements CardDeckAdapter.I
 
     // Networking Imports:
     public static final String SHUFFLE_CARD_DECK_BASE_URL = "https://deckofcardsapi.com/api/deck/new/shuffle/";
-    public final String deckOfCards_BASE_URL = "https://deckofcardsapi.com/api";
+    public final String deckOfCards_BASE_URL = "https://deckofcardsapi.com/api/";
     public String QUERY_PARAM = "count"; // Parameter for the search string
 
 
@@ -197,10 +197,12 @@ public class MainActivity extends AppCompatActivity implements CardDeckAdapter.I
             // initialize your shuffledCardDeckJsonResponse model:
             shuffledDeck = new ShuffledDeckJsonResponse(success,deck_id, shuffled, remaining);
 
-            testJSON.setText(deck_id);
         } catch (JSONException e) {
             e.printStackTrace();
         }
+
+        shuffledDeck.setDeckId(deck_id);
+
     } // ends shuffleNewDeck()
 
 
@@ -293,21 +295,41 @@ public class MainActivity extends AppCompatActivity implements CardDeckAdapter.I
         CardDeckService cardDeckService = retrofit.create(CardDeckService.class);
 
         // create your call back:
-        Call<List<SelectedCardsJsonResponse>> selectedCardsJsonResponseCall = cardDeckService.getSelectedCards(shuffledDeck.getDeckId(), numOfUserSelection);
-
-        selectedCardsJsonResponseCall.enqueue(new Callback<List<SelectedCardsJsonResponse>>() {
-
+        Call<SelectedCardsJsonResponse> selectedCardsJsonResponseCall = cardDeckService.getSelectedCards(shuffledDeck.getDeckId(), numOfUserSelection);
+        selectedCardsJsonResponseCall.enqueue(new Callback<SelectedCardsJsonResponse>() {
             @Override
-            public void onResponse(Call<List<SelectedCardsJsonResponse>> call, Response<List<SelectedCardsJsonResponse>> response) {
+            public void onResponse(Call<SelectedCardsJsonResponse> call, Response<SelectedCardsJsonResponse> response) {
 
                 Log.d(LOG_TAG, "onResponse: " +  response.body().toString());
+
+                cardDeck = response.body().getCardList();
+
             }
 
             @Override
-            public void onFailure(Call<List<SelectedCardsJsonResponse>> call, Throwable t) {
-                Log.d(LOG_TAG, t.getMessage());
+            public void onFailure(Call<SelectedCardsJsonResponse> call, Throwable t) {
+
             }
         });
+//        Call<List<SelectedCardsJsonResponse>> selectedCardsJsonResponseCall = cardDeckService.getSelectedCards(shuffledDeck.getDeckId(), numOfUserSelection);
+//
+//        selectedCardsJsonResponseCall.enqueue(new Callback<List<SelectedCardsJsonResponse>>() {
+//
+//            @Override
+//            public void onResponse(Call<List<SelectedCardsJsonResponse>> call, Response<List<SelectedCardsJsonResponse>> response) {
+//
+//                Log.d(LOG_TAG, "onResponse: " +  response.body().toString());
+//
+//                // cardDeck = response.body().get(3).getCardList();
+//
+//
+//            }
+//
+//            @Override
+//            public void onFailure(Call<List<SelectedCardsJsonResponse>> call, Throwable t) {
+//                Log.d(LOG_TAG, t.getMessage());
+//            }
+//        });
     } // ends connectToGetApiData
 
 

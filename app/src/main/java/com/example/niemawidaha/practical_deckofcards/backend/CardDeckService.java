@@ -15,7 +15,7 @@ public interface CardDeckService {
     static final String deck_id = "";
 
     @GET("/deck/{deck_id}/draw/")
-    Call<List<SelectedCardsJsonResponse>> getSelectedCards(
+    Call<SelectedCardsJsonResponse> getSelectedCards(
             @Path("deck_id") String deck_id,
             @Query("count") int numOfCards );
 
